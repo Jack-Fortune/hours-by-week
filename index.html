@@ -33,6 +33,26 @@ body{background:var(--bg) radial-gradient(115% 70% at 50% -8%,var(--bg-top) 0%,v
 html{background:var(--bg)}
 .wrap{max-width:672px;margin:0 auto;padding-inline:16px;padding-block:env(safe-area-inset-top,0px) calc(48px + env(safe-area-inset-bottom,0px))}
 .topbar{display:flex;align-items:center;gap:12px;height:48px;border-bottom:1px solid var(--line)}
+.gear{margin-left:auto;width:36px;height:36px;display:grid;place-items:center;border-radius:9999px;border:0;background:transparent;color:var(--muted);cursor:pointer;padding:0}
+.gear:hover,.gear[aria-expanded="true"]{color:var(--fg);background:var(--line)}
+.gear:focus-visible{outline:2px solid var(--muted);outline-offset:2px}
+.settings{margin-top:16px}
+.setgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding-top:14px}
+.setgrid label{display:grid;gap:6px;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.setgrid .wide{grid-column:1/-1}
+.setgrid .hint{font-size:.8rem;letter-spacing:0;text-transform:none;color:var(--dim)}
+select{font:400 1rem var(--font);padding:10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%;min-width:0}
+select:focus-visible{outline:none;border-color:var(--muted)}
+.money{display:block;margin-top:6px;font-size:.875rem;color:var(--muted);font-variant-numeric:tabular-nums;width:100%}
+.money b{font-weight:400;color:var(--fg)}
+.paytable{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.875rem}
+.paytable th,.paytable td{padding:10px 0;text-align:right;border-bottom:1px solid var(--line);font-weight:400}
+.paytable th:first-child,.paytable td:first-child{text-align:left;color:var(--muted)}
+.paytable thead th{color:var(--muted);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+.paytable td{color:var(--text);padding-left:12px}
+.paytable tr.net td{border-bottom:0;color:var(--bright);font-size:1rem}
+.paytable tr.net td:first-child{color:var(--fg)}
+.paynote{margin-top:10px;font-size:.8rem;color:var(--dim)}
 .topbar span{font-size:.95rem;font-weight:300;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .mark{width:14px;height:14px;border:1.5px solid var(--muted);border-radius:2px;position:relative}
 .mark::after{content:"";position:absolute;left:2px;right:2px;top:4px;height:1.5px;background:var(--muted);box-shadow:0 3px 0 var(--muted)}
@@ -102,7 +122,22 @@ input:focus-visible{outline:none;border-color:var(--muted)}
 </head>
 <body>
 <div class="wrap">
-  <div class="topbar"><div class="mark" aria-hidden="true"></div><span>Hours by week</span></div>
+  <div class="topbar"><div class="mark" aria-hidden="true"></div><span>Hours by week</span>
+    <button class="gear" id="gear" type="button" aria-label="Settings" aria-expanded="false" aria-controls="settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <section class="card settings" id="settings" hidden>
+    <div class="card-head"><h2>Settings</h2></div>
+    <form class="setgrid" id="setform">
+      <label>Hourly pay ($)<input id="set-rate" type="number" inputmode="decimal" min="0" step="0.01"></label>
+      <label>Filing status<select id="set-status"><option value="single">Single</option><option value="married">Married, joint</option></select></label>
+      <label class="wide">State<select id="set-state"></select></label>
+      <label class="wide">State tax override (%)<input id="set-staterate" type="number" inputmode="decimal" min="0" max="20" step="0.01" placeholder="Automatic"><span class="hint">Leave blank to estimate from the state.</span></label>
+      <button class="solid wide" type="submit">Done</button>
+    </form>
+  </section>
 
   <div class="hero">
     <div class="readout" id="readout">0h 0m</div>
@@ -130,6 +165,12 @@ input:focus-visible{outline:none;border-color:var(--muted)}
       </form>
     </section>
 
+    <section class="card" id="paycard" hidden>
+      <div class="card-head"><h2>Estimated pay</h2><span class="tot" id="pay-rate"></span></div>
+      <div style="overflow-x:auto"><table class="paytable" id="paytable"></table></div>
+      <div class="paynote" id="paynote"></div>
+    </section>
+
     <section class="card">
       <div class="card-head"><h2>Calculator</h2><span class="tot">± flips add / subtract</span></div>
       <div id="lines"></div>
@@ -148,10 +189,15 @@ input:focus-visible{outline:none;border-color:var(--muted)}
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script src="parse.js?v=2"></script>
+<script src="tax.js?v=1"></script>
 <script>
 const KEY = "punchcard.v1";
 let state = load();
 let calc = loadCalc();
+let settings = loadSettings();
+function loadSettings(){ const d={rate:20,state:"UT",status:"single",stateRate:""}; try{ return {...d, ...JSON.parse(localStorage.getItem(KEY+".settings"))}; }catch(e){ return d; } }
+function saveSettings(){ try{ localStorage.setItem(KEY+".settings", JSON.stringify(settings)); }catch(e){} }
+const usd = n => "$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 
 function load(){ try{ const v = JSON.parse(localStorage.getItem(KEY)); if(v && Array.isArray(v.shifts)) return v; }catch(e){} return {shifts:[]}; }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
@@ -186,7 +232,7 @@ function render(){
   for(const s of shifts){ const w = weekStart(s.date); if(!weeks.has(w)) weeks.set(w,[]); weeks.get(w).push(s); }
   const wrap = $("weeks"); wrap.textContent = "";
   if(!shifts.length){ const c=el("section","card"); c.append(el("div","empty","No shifts yet. Add a screenshot of your timesheet and each Sunday–Saturday week shows up here with its total.")); wrap.append(c); }
-  let i = 0, grand = 0;
+  let i = 0, grand = 0; const weekPays = [];
   for(const [w,list] of weeks){
     i++;
     const total = list.filter(s=>s.on).reduce((a,s)=>a+minutesOf(s),0); grand += total;
@@ -195,6 +241,9 @@ function render(){
     const card = el("section","card");
     const head = el("div","card-head");
     head.append(el("h2",null,"Week "+i+" · "+range), el("span","tot",hm(total)+" • "+dec(total)));
+    const pay = PayTax.weekPay(total/60*settings.rate, settings);
+    weekPays.push({name:"Week "+i, pay});
+    if(settings.rate>0){ const mline=el("span","money"); mline.append("≈ ", el("b",null,usd(pay.net)), " take-home · "+usd(pay.gross)+" before tax"); head.append(mline); }
     const ul = el("ul");
     for(const s of list){
       const li = el("li","shift "+(s.on?"on":"off"));
@@ -214,6 +263,7 @@ function render(){
     card.append(head,ul); wrap.append(card);
   }
   $("readout").textContent = hm(grand);
+  renderPay(weekPays);
   const starts = [...weeks.keys()];
   $("caption").textContent = starts.length
     ? "Pay period total · "+fmtDay(starts[0],{month:"short",day:"numeric"})+" – "+fmtDay(fromUTC(toUTC(starts.at(-1))+6*DAY),{month:"short",day:"numeric"})+" · "+dec(grand)
@@ -346,6 +396,46 @@ function pushToCalc(min){
 $("addline").onclick=()=>{ calc.push({s:1,h:"",m:""}); saveCalc(); renderCalc(); };
 $("resetcalc").onclick=()=>{ calc=[{s:1,h:"",m:""},{s:1,h:"",m:""}]; saveCalc(); renderCalc(); };
 $("tocalc").onclick=()=>pushToCalc(state.shifts.filter(s=>s.on).reduce((a,s)=>a+minutesOf(s),0));
+
+function renderPay(weeks){
+  const card = $("paycard");
+  card.hidden = !weeks.length || !(settings.rate>0);
+  if(card.hidden) return;
+  const st = PayTax.STATES[settings.state];
+  const stateName = st ? st[0] : "State";
+  $("pay-rate").textContent = usd(Number(settings.rate))+"/hr · "+stateName;
+  const sum = k => weeks.reduce((a,w)=>a+w.pay[k],0);
+  const cols = weeks.map(w=>({name:w.name, p:w.pay}));
+  if(weeks.length>1) cols.push({name:"Total", p:{gross:sum("gross"),federal:sum("federal"),fica:sum("fica"),state:sum("state"),net:sum("net")}});
+  const rows = [["Gross","gross"],["Federal tax","federal"],["Social Security & Medicare","fica"],[stateName+" tax","state"],["Take-home","net"]];
+  const t = $("paytable"); t.textContent="";
+  const thead = el("thead"), hr = el("tr"); hr.append(el("th")); cols.forEach(c=>hr.append(el("th",null,c.name))); thead.append(hr);
+  const tb = el("tbody");
+  for(const [label,k] of rows){
+    const tr = el("tr", k==="net"?"net":null); tr.append(el("td",null,label));
+    cols.forEach(c=>tr.append(el("td",null,(k==="gross"||k==="net"?"":"−")+usd(c.p[k]))));
+    tb.append(tr);
+  }
+  t.append(thead,tb);
+  let note = "Estimate, as if each week were its own paycheck. "+(settings.status==="married"?"Married filing jointly":"Single")+", standard deduction, no extra withholding.";
+  if(settings.stateRate!=="" && settings.stateRate!=null) note += " State tax set to "+settings.stateRate+"%.";
+  else if(st && st[1]==="approx") note += " "+stateName+" is a rough average rate; set an exact one in settings.";
+  $("paynote").textContent = note;
+}
+
+// ---- settings
+(function(){
+  const sel = $("set-state");
+  Object.entries(PayTax.STATES).sort((a,b)=>a[1][0].localeCompare(b[1][0])).forEach(([code,v])=>{ const o=document.createElement("option"); o.value=code; o.textContent=v[0]; sel.append(o); });
+  const fill = () => { $("set-rate").value=settings.rate; $("set-state").value=settings.state; $("set-status").value=settings.status; $("set-staterate").value=settings.stateRate; };
+  const apply = () => {
+    settings = { rate: Math.max(0, Number($("set-rate").value)||0), state: $("set-state").value, status: $("set-status").value, stateRate: $("set-staterate").value.trim() };
+    saveSettings(); render();
+  };
+  $("gear").onclick = () => { const c=$("settings"); c.hidden=!c.hidden; $("gear").setAttribute("aria-expanded",String(!c.hidden)); if(!c.hidden){ fill(); $("set-rate").focus(); } };
+  ["set-rate","set-state","set-status","set-staterate"].forEach(id=>$(id).addEventListener("input",apply));
+  $("setform").addEventListener("submit", e => { e.preventDefault(); apply(); $("settings").hidden=true; $("gear").setAttribute("aria-expanded","false"); });
+})();
 
 render(); renderCalc();
 setInterval(()=>{ if(state.shifts.some(s=>s.running)) render(); }, 60000);
