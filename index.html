@@ -263,7 +263,9 @@ async function readScreenshot(file){
     const byKey = new Map(state.shifts.map(s=>[keyOf(s),s]));
     let added = 0, updated = 0;
     for(const g of out.shifts){
-      const s = {date:g.date,start:g.start,end:g.end,minutes:g.end?span(g.start,g.end):0,running:!g.end,on:true};
+      let minutes = g.end ? span(g.start,g.end) : 0;
+      if(g.end && g.listedMinutes!=null && Math.abs(g.listedMinutes-minutes)<=5) minutes = g.listedMinutes;
+      const s = {date:g.date,start:g.start,end:g.end,minutes,running:!g.end,on:true};
       const k = keyOf(s);
       if(byKey.has(k)){ Object.assign(byKey.get(k), {...s, on:byKey.get(k).on}); updated++; }
       else { state.shifts.push(s); byKey.set(k,s); added++; }

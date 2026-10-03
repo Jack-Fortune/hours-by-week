@@ -7,6 +7,8 @@
   const PERIOD_RE = new RegExp(MON + "\\s+\\d{1,2}\\s*[-–—~]\\s*" + MON + "\\s+\\d{1,2},?\\s+(20\\d\\d)", "i");
   const T = "(\\d{1,2})[:.;](\\d{2})\\s*([AP])\\.?\\s*M?";
   const RANGE_RE = new RegExp(T + "\\s*[-–—~=]+\\s*(?:" + T + "|(running))", "i");
+  // The printed duration, e.g. "(7h 26m)". The clock counts seconds, so it can be a minute off the start/end times.
+  const DUR_RE = /\(\s*(\d{1,2})\s*h\s*(\d{1,2})\s*m\s*\)/i;
   const CLOCK_RE = /^\D{0,3}(\d{1,2}):(\d{2}):(\d{2})\D{0,3}$/;
 
   const to24 = (h, m, ap) => {
@@ -42,7 +44,10 @@
       if (r && current) {
         const start = to24(r[1], r[2], r[3]);
         const end = r[7] ? null : to24(r[4], r[5], r[6]);
-        shifts.push({ date: current, start, end });
+        const shift = { date: current, start, end };
+        const dm = l.match(DUR_RE);
+        if (end && dm) shift.listedMinutes = Number(dm[1]) * 60 + Number(dm[2]);
+        shifts.push(shift);
       }
     }
     return { shifts, runningElapsedMinutes: runningElapsed, year };
