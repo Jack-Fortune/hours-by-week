@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hours by Week</title>
+<meta name="description" content="Split a timesheet screenshot into Sunday–Saturday weeks and total the hours.">
+<meta name="theme-color" content="#1b1b23">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hours">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500&display=swap">
+<style>
+/* Layout: matches the FLF Time Clock — one 640px column, round button, big readout, bordered cards. Dark only, like the clock. */
+:root{
+  --bg:#1b1b23; --bg-top:#33323c; --bg-mid:#26262f;
+  --card:#2a2a32; --line:#383843;
+  --fg:#e2e2e2; --text:#cdcdcd; --bright:#f8f8f8; --muted:#a3a3a3; --dim:#777779;
+  --font:"Rubik",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+html,body{min-height:100%}
+body{background:var(--bg) radial-gradient(115% 70% at 50% -8%,var(--bg-top) 0%,var(--bg-mid) 42%,var(--bg) 100%) no-repeat;background-attachment:fixed;color:var(--text);font-family:var(--font);font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased}
+html{background:var(--bg)}
+.wrap{max-width:672px;margin:0 auto;padding-inline:16px;padding-block:env(safe-area-inset-top,0px) calc(48px + env(safe-area-inset-bottom,0px))}
+.topbar{display:flex;align-items:center;gap:12px;height:48px;border-bottom:1px solid var(--line)}
+.topbar span{font-size:.95rem;font-weight:300;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.mark{width:14px;height:14px;border:1.5px solid var(--muted);border-radius:2px;position:relative}
+.mark::after{content:"";position:absolute;left:2px;right:2px;top:4px;height:1.5px;background:var(--muted);box-shadow:0 3px 0 var(--muted)}
+
+.hero{display:flex;flex-direction:column;align-items:center;padding-block:28px 22px}
+.upload{position:relative;display:block;width:100%;margin-top:22px;text-align:center}
+.upload input{position:absolute;opacity:0;width:1px;height:1px}
+.upload:focus-within{outline:2px solid var(--muted);outline-offset:3px;border-radius:4px}
+.upload.busy{opacity:.6;pointer-events:none}
+.upload.drag{outline:2px dashed var(--fg);outline-offset:4px;background:var(--bright)}
+.readout{margin-top:0;font-size:3rem;font-weight:300;letter-spacing:.02em;color:var(--bright);font-variant-numeric:tabular-nums;line-height:1}
+.caption{margin-top:10px;font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center}
+.status{margin-top:14px;font-size:.85rem;color:var(--muted);text-align:center;max-width:44ch}
+.status.err{color:#e9a2a2}
+
+.stack{display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 1px 2px rgba(0,0,0,.45)}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.card-head h2{margin:0;font-size:1rem;font-weight:400;color:var(--fg)}
+.card-head .tot{font-size:.875rem;color:var(--muted);font-variant-numeric:tabular-nums}
+ul{list-style:none;margin:0;padding:0}
+li.shift{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer}
+li.shift:last-child{border-bottom:0;padding-bottom:0}
+.tick{flex:none;width:18px;height:18px;border-radius:9999px;border:1px solid var(--dim);display:grid;place-items:center;background:transparent;padding:0}
+.tick::after{content:"";width:8px;height:8px;border-radius:9999px;background:var(--fg);opacity:0}
+li.on .tick::after{opacity:1}
+li.on .tick{border-color:var(--muted)}
+.tick:focus-visible{outline:2px solid var(--muted);outline-offset:2px}
+.s-body{flex:1;min-width:0}
+.s-top{display:flex;justify-content:space-between;gap:10px;color:var(--fg)}
+.s-top .d{font-size:.875rem;color:var(--text);font-variant-numeric:tabular-nums}
+.s-sub{margin-top:4px;font-size:.875rem;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.s-sub .p{color:var(--dim)}
+li.off .s-top,li.off .s-sub{opacity:.4}
+li.off .s-top .d{text-decoration:line-through}
+.x{background:none;border:0;color:var(--fg);font:500 13px var(--font);width:22px;height:22px;border-radius:50%;cursor:pointer;padding:0}
+.x:hover,.x:focus-visible{background:var(--line);outline:none}
+.empty{color:var(--muted);text-align:center;padding:20px 0 4px;font-size:.9rem}
+
+.links{display:flex;gap:20px;flex-wrap:wrap;padding-top:4px}
+.link{background:none;border:0;padding:0;font:400 .875rem var(--font);color:var(--muted);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.link:focus-visible{outline:2px solid var(--muted);outline-offset:3px;border-radius:4px}
+.solid{width:100%;border:0;border-radius:4px;padding:12px 16px;background:var(--fg);color:var(--bg);font:500 .875rem var(--font);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.solid:active{background:var(--muted)}
+.solid:focus-visible{outline:2px solid var(--muted);outline-offset:3px}
+
+input[type=date],input[type=time],input[type=number]{font:400 1rem var(--font);font-variant-numeric:tabular-nums;padding:10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%;min-width:0}
+input:focus-visible{outline:none;border-color:var(--muted)}
+.addform{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding-top:14px}
+.addform label{display:grid;gap:6px;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.addform .solid{grid-column:1/-1}
+@media (max-width:420px){.addform{grid-template-columns:1fr 1fr}.addform label:first-child{grid-column:1/-1}}
+
+.line{display:grid;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) 22px;gap:10px;align-items:center;padding-top:12px}
+.sign{height:40px;border-radius:9999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:400 1.1rem var(--font);cursor:pointer;padding:0}
+.sign.minus{color:#e9a2a2}
+.sign:focus-visible{outline:2px solid var(--muted);outline-offset:2px}
+.unit{position:relative}
+.unit span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--dim);pointer-events:none}
+.unit input{padding-right:26px}
+.calc-out{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.calc-out .big{font-size:1.9rem;font-weight:300;color:var(--bright);font-variant-numeric:tabular-nums}
+.calc-out .dec{font-size:.875rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.thumb{display:block;max-height:90px;margin:12px auto 0;border-radius:6px;border:1px solid var(--line);opacity:.8}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar"><div class="mark" aria-hidden="true"></div><span>Hours by week</span></div>
+
+  <div class="hero">
+    <div class="readout" id="readout">0h 0m</div>
+    <div class="caption" id="caption">Pay period total</div>
+    <label class="solid upload" id="dial" for="file"><span id="dial-text">Add screenshot</span><input id="file" type="file" accept="image/*"></label>
+    <img id="thumb" class="thumb" alt="Screenshot being read" hidden>
+    <div class="status" id="status">Tap or drop a timesheet screenshot here.</div>
+  </div>
+
+  <div class="stack">
+    <div id="weeks" class="stack"></div>
+
+    <div class="links">
+      <button class="link" id="toggle-add" type="button" aria-expanded="false">Add a missed punch</button>
+      <button class="link" id="clear" type="button">Clear all shifts</button>
+    </div>
+
+    <section class="card" id="addcard" hidden>
+      <div class="card-head"><h2>Add a shift</h2></div>
+      <form id="addform" class="addform">
+        <label>Date<input id="add-date" type="date" required></label>
+        <label>Start<input id="add-start" type="time" required></label>
+        <label>End<input id="add-end" type="time" required></label>
+        <button class="solid" type="submit">Add shift</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Calculator</h2><span class="tot">± flips add / subtract</span></div>
+      <div id="lines"></div>
+      <div class="calc-out">
+        <span class="big" id="calc-val">0h 0m</span>
+        <span class="dec" id="calc-dec">0.00 h</span>
+      </div>
+      <div class="links" style="padding-top:14px">
+        <button class="link" id="addline" type="button">Add a line</button>
+        <button class="link" id="tocalc" type="button">Add checked total</button>
+        <button class="link" id="resetcalc" type="button">Reset</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="parse.js"></script>
+<script>
+const KEY = "punchcard.v1";
+let state = load();
+let calc = loadCalc();
+
+function load(){ try{ const v = JSON.parse(localStorage.getItem(KEY)); if(v && Array.isArray(v.shifts)) return v; }catch(e){} return {shifts:[]}; }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function loadCalc(){ try{ const v = JSON.parse(localStorage.getItem(KEY+".calc")); if(Array.isArray(v)&&v.length) return v; }catch(e){} return [{s:1,h:"",m:""},{s:1,h:"",m:""}]; }
+function saveCalc(){ try{ localStorage.setItem(KEY+".calc", JSON.stringify(calc)); }catch(e){} }
+
+// ---- time helpers (dates are YYYY-MM-DD strings, math in UTC so time zones never shift a day)
+const DAY = 86400000;
+const toUTC = d => { const [y,m,dd] = d.split("-").map(Number); return Date.UTC(y,m-1,dd); };
+const fromUTC = t => new Date(t).toISOString().slice(0,10);
+const weekStart = d => { const t = toUTC(d); return fromUTC(t - new Date(t).getUTCDay()*DAY); };
+const fmtDay = (d,opts) => new Date(toUTC(d)).toLocaleDateString("en-US",{timeZone:"UTC",...opts});
+const hm = min => { const neg = min<0; min=Math.abs(Math.round(min)); return (neg?"−":"")+Math.floor(min/60)+"h "+(min%60)+"m"; };
+const dec = min => (min/60).toFixed(2)+" h";
+const clock = t => { if(!t) return "running"; let [h,m]=t.split(":").map(Number); const ap=h>=12?"PM":"AM"; h=h%12||12; return h+":"+String(m).padStart(2,"0")+" "+ap; };
+const span = (a,b) => { const [ah,am]=a.split(":").map(Number), [bh,bm]=b.split(":").map(Number); let d=(bh*60+bm)-(ah*60+am); if(d<0) d+=1440; return d; };
+const keyOf = s => s.date+"|"+s.start;
+const el = (tag,cls,text) => { const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
+// A running shift counts from its start until now (local time), capped at 24h.
+function minutesOf(s){
+  if(!s.running) return s.minutes;
+  const [y,mo,d] = s.date.split("-").map(Number), [h,m] = s.start.split(":").map(Number);
+  const mins = (Date.now() - new Date(y,mo-1,d,h,m).getTime())/60000;
+  return Math.max(0, Math.min(1440, Math.floor(mins)));
+}
+
+// ---- render
+const $ = id => document.getElementById(id);
+function render(){
+  const shifts = [...state.shifts].sort((a,b)=>keyOf(a)<keyOf(b)?-1:1);
+  const weeks = new Map();
+  for(const s of shifts){ const w = weekStart(s.date); if(!weeks.has(w)) weeks.set(w,[]); weeks.get(w).push(s); }
+  const wrap = $("weeks"); wrap.textContent = "";
+  if(!shifts.length){ const c=el("section","card"); c.append(el("div","empty","No shifts yet. Add a screenshot of your timesheet and each Sunday–Saturday week shows up here with its total.")); wrap.append(c); }
+  let i = 0, grand = 0;
+  for(const [w,list] of weeks){
+    i++;
+    const total = list.filter(s=>s.on).reduce((a,s)=>a+minutesOf(s),0); grand += total;
+    const end = fromUTC(toUTC(w)+6*DAY);
+    const range = fmtDay(w,{month:"short",day:"numeric"})+" – "+fmtDay(end,{month:"short",day:"numeric"});
+    const card = el("section","card");
+    const head = el("div","card-head");
+    head.append(el("h2",null,"Week "+i+" · "+range), el("span","tot",hm(total)+" • "+dec(total)));
+    const ul = el("ul");
+    for(const s of list){
+      const li = el("li","shift "+(s.on?"on":"off"));
+      const tick = el("button","tick"); tick.type="button"; tick.setAttribute("role","checkbox"); tick.setAttribute("aria-checked",String(s.on));
+      tick.setAttribute("aria-label","Count "+fmtDay(s.date,{weekday:"long",month:"short",day:"numeric"}));
+      li.onclick = e => { if(!e.target.closest(".x")){ s.on=!s.on; save(); render(); } };
+      const body = el("div","s-body");
+      const top = el("div","s-top");
+      top.append(el("span",null,fmtDay(s.date,{weekday:"short",month:"short",day:"numeric"})), el("span","d",hm(minutesOf(s))));
+      const sub = el("div","s-sub");
+      sub.append(el("span",null,clock(s.start)+" – "+clock(s.end)), el("span","p", s.running ? "(so far)" : "("+hm(s.minutes)+")"));
+      const x = el("button","x","×"); x.type="button"; x.setAttribute("aria-label","Remove shift");
+      x.onclick = () => { state.shifts = state.shifts.filter(v=>v!==s); save(); render(); };
+      sub.append(x);
+      body.append(top,sub); li.append(tick,body); ul.append(li);
+    }
+    card.append(head,ul); wrap.append(card);
+  }
+  $("readout").textContent = hm(grand);
+  const starts = [...weeks.keys()];
+  $("caption").textContent = starts.length
+    ? "Pay period total · "+fmtDay(starts[0],{month:"short",day:"numeric"})+" – "+fmtDay(fromUTC(toUTC(starts.at(-1))+6*DAY),{month:"short",day:"numeric"})+" · "+dec(grand)
+    : "Pay period total";
+}
+
+// ---- screenshot reading, on the device (Tesseract OCR)
+const status = (msg,err) => { const s=$("status"); s.textContent=msg; s.className="status"+(err?" err":""); };
+let worker = null;
+async function getWorker(){
+  if(!worker){
+    status("Getting text reader ready… first time only, about 10 seconds.");
+    worker = await Tesseract.createWorker("eng");
+  }
+  return worker;
+}
+
+// Dark UI → dark text on white, upscaled if small. OCR reads that far better.
+async function prep(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+    const scale = img.naturalWidth < 1200 ? 2 : 1;
+    const c = document.createElement("canvas"); c.width=img.naturalWidth*scale; c.height=img.naturalHeight*scale;
+    const ctx = c.getContext("2d"); ctx.imageSmoothingQuality="high"; ctx.drawImage(img,0,0,c.width,c.height);
+    const px = ctx.getImageData(0,0,c.width,c.height), d = px.data;
+    for(let i=0;i<d.length;i+=4){ const g = 255 - (0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]); d[i]=d[i+1]=d[i+2]=g; }
+    ctx.putImageData(px,0,0);
+    return c;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+let busy = false;
+async function readScreenshot(file){
+  if(busy || !file) return;
+  if(!/^image\//.test(file.type) && !/\.(png|jpe?g|webp|heic|gif)$/i.test(file.name||"")){ status("That isn't an image. Use a screenshot of your timesheet.",true); return; }
+  busy = true; $("dial").classList.add("busy"); $("dial-text").textContent = "Reading…";
+  const thumb = $("thumb"); thumb.src = URL.createObjectURL(file); thumb.hidden = false;
+  try{
+    if(typeof Tesseract === "undefined") throw new Error("The text reader didn't load. Check your connection and reload.");
+    const canvas = await prep(file);
+    const w = await getWorker();
+    status("Reading the screenshot…");
+    const { data } = await w.recognize(canvas);
+    const out = parseTimesheet(data.text, new Date());
+    if(!out.shifts.length){ status("Couldn't find any shifts in that image. Try a sharper screenshot, or add a missed punch by hand.",true); return; }
+    const byKey = new Map(state.shifts.map(s=>[keyOf(s),s]));
+    let added = 0, updated = 0;
+    for(const g of out.shifts){
+      const s = {date:g.date,start:g.start,end:g.end,minutes:g.end?span(g.start,g.end):0,running:!g.end,on:true};
+      const k = keyOf(s);
+      if(byKey.has(k)){ Object.assign(byKey.get(k), {...s, on:byKey.get(k).on}); updated++; }
+      else { state.shifts.push(s); byKey.set(k,s); added++; }
+    }
+    save(); render();
+    thumb.hidden = true;
+    status(`Read ${out.shifts.length} shifts (${added} new, ${updated} updated). Check them against your timesheet.`);
+  }catch(err){
+    status((err?.message || "Couldn't read that screenshot.")+" You can add a missed punch by hand.",true);
+  }finally{
+    busy = false; $("dial").classList.remove("busy"); $("dial-text").textContent = "Add screenshot";
+  }
+}
+
+$("file").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; readScreenshot(f); });
+
+// Drag and drop: the button takes the drop, and a drop anywhere on the page works too.
+const dial = $("dial");
+let depth = 0;
+document.addEventListener("dragenter", e => { if([...(e.dataTransfer?.types||[])].includes("Files")){ depth++; dial.classList.add("drag"); $("dial-text").textContent="Drop screenshot"; } });
+document.addEventListener("dragleave", () => { if(--depth<=0){ depth=0; dial.classList.remove("drag"); if(!busy) $("dial-text").textContent="Add screenshot"; } });
+document.addEventListener("dragover", e => { e.preventDefault(); });
+document.addEventListener("drop", e => {
+  e.preventDefault(); depth=0; dial.classList.remove("drag"); if(!busy) $("dial-text").textContent="Add screenshot";
+  const f = [...(e.dataTransfer?.files||[])].find(f=>/^image\//.test(f.type)) || e.dataTransfer?.files?.[0];
+  readScreenshot(f);
+});
+// Paste a screenshot (Cmd+V / long-press Paste).
+document.addEventListener("paste", e => {
+  if(e.target.closest && e.target.closest("input")) return;
+  const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith("image/"));
+  if(item){ e.preventDefault(); readScreenshot(item.getAsFile()); }
+});
+
+$("clear").onclick = () => {
+  const b = $("clear");
+  if(b.dataset.armed){ state.shifts=[]; save(); render(); status("Cleared. Add a screenshot to start a new pay period."); b.textContent="Clear all shifts"; delete b.dataset.armed; return; }
+  b.dataset.armed="1"; b.textContent="Tap again to clear";
+  setTimeout(()=>{ if(b.dataset.armed){ delete b.dataset.armed; b.textContent="Clear all shifts"; } },3000);
+};
+
+$("toggle-add").onclick = () => { const c=$("addcard"); c.hidden=!c.hidden; $("toggle-add").setAttribute("aria-expanded",String(!c.hidden)); if(!c.hidden) $("add-date").focus(); };
+$("addform").addEventListener("submit", e => {
+  e.preventDefault();
+  const date=$("add-date").value, start=$("add-start").value, end=$("add-end").value;
+  if(!date||!start||!end) return;
+  state.shifts = state.shifts.filter(s=>keyOf(s)!==date+"|"+start);
+  state.shifts.push({date,start,end,minutes:span(start,end),on:true});
+  save(); render(); status("Added "+fmtDay(date,{weekday:"short",month:"short",day:"numeric"})+".");
+});
+
+// ---- calculator
+function renderCalc(){
+  const box = $("lines"); box.textContent="";
+  calc.forEach((l,idx)=>{
+    const row=el("div","line");
+    const sg=el("button","sign"+(l.s<0?" minus":""),l.s<0?"−":"+"); sg.type="button"; sg.setAttribute("aria-label",l.s<0?"Subtracting, tap to add":"Adding, tap to subtract");
+    sg.onclick=()=>{ l.s*=-1; saveCalc(); renderCalc(); };
+    const mk=(k,u)=>{ const w=el("div","unit"); const i=document.createElement("input"); i.type="number"; i.inputMode="numeric"; i.min="0"; i.placeholder="0"; i.value=l[k]; i.id="calc-"+k+"-"+idx; i.setAttribute("aria-label",u==="h"?"Hours":"Minutes");
+      i.oninput=()=>{ l[k]=i.value; saveCalc(); total(); }; w.append(i,el("span",null,u)); return w; };
+    const rm=el("button","x","×"); rm.type="button"; rm.setAttribute("aria-label","Remove line");
+    rm.onclick=()=>{ calc.splice(idx,1); if(!calc.length) calc.push({s:1,h:"",m:""}); saveCalc(); renderCalc(); };
+    row.append(sg,mk("h","h"),mk("m","m"),rm); box.append(row);
+  });
+  total();
+}
+function total(){
+  const t = calc.reduce((a,l)=>a + l.s*((Number(l.h)||0)*60 + (Number(l.m)||0)),0);
+  $("calc-val").textContent = hm(t);
+  $("calc-dec").textContent = (t/60).toFixed(2)+" h";
+}
+function pushToCalc(min){
+  const blank = calc.find(l=>!l.h && !l.m);
+  const line = {s:1,h:String(Math.floor(min/60)),m:String(min%60)};
+  if(blank) Object.assign(blank,line); else calc.push(line);
+  saveCalc(); renderCalc();
+}
+$("addline").onclick=()=>{ calc.push({s:1,h:"",m:""}); saveCalc(); renderCalc(); };
+$("resetcalc").onclick=()=>{ calc=[{s:1,h:"",m:""},{s:1,h:"",m:""}]; saveCalc(); renderCalc(); };
+$("tocalc").onclick=()=>pushToCalc(state.shifts.filter(s=>s.on).reduce((a,s)=>a+minutesOf(s),0));
+
+render(); renderCalc();
+setInterval(()=>{ if(state.shifts.some(s=>s.running)) render(); }, 60000);
+</script>
+</body>
+</html>

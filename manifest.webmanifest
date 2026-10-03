@@ -1,0 +1,14 @@
+{
+  "name": "Hours by Week",
+  "short_name": "Hours",
+  "description": "Split a timesheet screenshot into Sunday–Saturday weeks and total the hours.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1b1b23",
+  "theme_color": "#1b1b23",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
